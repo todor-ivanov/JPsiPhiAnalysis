@@ -2,6 +2,7 @@ import FWCore.ParameterSet.Config as cms
 process = cms.Process('PSIKK')
 
 input_file = "file:0EE0B583-7A9C-E711-82D7-B083FED00117.root"
+input_file = "file:08A70447-9315-E711-AD3E-0CC47A78A340.root"
 
 process.load("TrackingTools.TransientTrack.TransientTrackBuilder_cfi")
 process.load('Configuration.StandardSequences.GeometryRecoDB_cff')
@@ -126,8 +127,12 @@ process.rootuple = cms.EDAnalyzer('DiMuonDiTrakRootupler',
     beamSpotTag = cms.InputTag("offlineBeamSpot"),
     primaryVertices = cms.InputTag("offlineSlimmedPrimaryVertices"),
     TriggerResults = cms.InputTag("TriggerResults", "", "HLT"),
-    isMC = cms.bool(False),
+    isMC = cms.bool(True),
     OnlyBest = cms.bool(False),
+    OnlyGen = cms.bool(False),
+    Mother_pdg = cms.uint32(531),
+    JPsi_pdg = cms.uint32(443),
+    Phi_pdg = cms.uint32(333),
     HLTs = hltpaths,
     Filters = filters,
     TreeName = cms.string('JPsi Phi Tree')
