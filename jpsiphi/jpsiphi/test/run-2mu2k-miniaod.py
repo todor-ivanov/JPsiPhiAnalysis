@@ -11,7 +11,7 @@ process.load('Configuration.StandardSequences.FrontierConditions_GlobalTag_condD
 process.load("SimTracker.TrackerHitAssociation.tpClusterProducer_cfi")
 from Configuration.AlCa.GlobalTag_condDBv2 import GlobalTag
 process.GlobalTag = GlobalTag(process.GlobalTag, '80X_dataRun2_2016LegacyRepro_v4')
-
+process.GlobalTag = GlobalTag(process.GlobalTag, '80X_mcRun2_asymptotic_2016_TrancheIV_v6')
 process.options   = cms.untracked.PSet( wantSummary = cms.untracked.bool(True))
 
 process.load("FWCore.MessageLogger.MessageLogger_cfi")
