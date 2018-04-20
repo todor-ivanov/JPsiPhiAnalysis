@@ -70,8 +70,9 @@ class DiMuonDiTrakRootupler : public edm::EDAnalyzer {
   edm::EDGetTokenT<reco::BeamSpot> thebeamspot_;
   edm::EDGetTokenT<reco::VertexCollection> primaryVertices_Label;
   edm::EDGetTokenT<edm::TriggerResults> triggerResults_Label;
-  int  dimuonditrk_pdgid_, dimuon_pdgid_, trak_pdgid_;
-  bool isMC_,OnlyBest_;
+  int  dimuonditrk_pdgid_, dimuon_pdgid_, trak_pdgid_, pdgid_;
+  bool isMC_,OnlyBest_,OnlyGen_ ;
+  UInt_t motherpdgid_,phipdgid_,jpspdgid_;
   std::vector<std::string>  HLTs_;
   std::vector<std::string>  HLTFilters_;
   std::string treeName_;
@@ -117,6 +118,8 @@ class DiMuonDiTrakRootupler : public edm::EDAnalyzer {
 
   Double_t track_KP_d0, track_KP_d0Err, track_KP_dz, track_KP_dxy;
   Int_t track_KP_nvsh, track_KP_nvph;
+
+  UInt_t tPMatch, tNMatch;
 
   Int_t track_KN_nvsh, track_KN_nvph;
 
@@ -178,6 +181,10 @@ DiMuonDiTrakRootupler::DiMuonDiTrakRootupler(const edm::ParameterSet& iConfig):
         triggerResults_Label(consumes<edm::TriggerResults>(iConfig.getParameter<edm::InputTag>("TriggerResults"))),
 	      isMC_(iConfig.getParameter<bool>("isMC")),
         OnlyBest_(iConfig.getParameter<bool>("OnlyBest")),
+        OnlyGen_(iConfig.getParameter<bool>("OnlyGen")),
+        motherpdgid_(iConfig.getParameter<uint32_t>("Mother_pdg")),
+        phipdgid_(iConfig.getParameter<uint32_t>("JPsi_pdg")),
+        jpspdgid_(iConfig.getParameter<uint32_t>("Phi_pdg")),
         HLTs_(iConfig.getParameter<std::vector<std::string>>("HLTs")),
         HLTFilters_(iConfig.getParameter<std::vector<std::string>>("Filters")),
         treeName_(iConfig.getParameter<std::string>("TreeName"))
@@ -226,6 +233,8 @@ DiMuonDiTrakRootupler::DiMuonDiTrakRootupler(const edm::ParameterSet& iConfig):
         dimuonditrk_tree->Branch("dimuonditrk_ctauErrPV",  &dimuonditrk_ctauErrPV,    "dimuonditrk_ctauErrPV/D");
         dimuonditrk_tree->Branch("dimuonditrk_charge",     &dimuonditrk_charge,       "dimuonditrk_charge/I");
 
+        dimuonditrk_tree->Branch("tPMatch",     &tPMatch,       "tPMatch/I");
+        dimuonditrk_tree->Branch("tNMatch",     &tNMatch,       "tNMatch/I");
         //Muon flags
         dimuonditrk_tree->Branch("muonP_isLoose",        &muonP_isLoose,        "muonP_isLoose/O");
         dimuonditrk_tree->Branch("muonP_isSoft",        &muonP_isSoft,        "muonP_isSoft/O");
@@ -246,10 +255,26 @@ DiMuonDiTrakRootupler::DiMuonDiTrakRootupler(const edm::ParameterSet& iConfig):
         dimuonditrk_tree->Branch("muonP_type",     &muonP_type,       "muonP_type/i");
         dimuonditrk_tree->Branch("muonN_type",     &muonN_type,       "muonN_type/i");
 
+        int pdgid_ = 0;
+
+        if (isMC_ ) {
+           std::cout << "DiMuonRootupler::DiMuonRootupler: Dimuon id " << pdgid_ << std::endl;
+           dimuonditrk_tree->Branch("gen_dimuonditrk_pdgId",  &gen_dimuonditrk_pdgId,     "gen_dimuonditrk_pdgId/I");
+           dimuonditrk_tree->Branch("gen_dimuonditrk_p4", "TLorentzVector",  &gen_dimuonditrk_p4);
+           dimuonditrk_tree->Branch("gen_dimuon_p4", "TLorentzVector",  &gen_dimuon_p4);
+           dimuonditrk_tree->Branch("gen_muonp_p4",  "TLorentzVector",  &gen_muonp_p4);
+           dimuonditrk_tree->Branch("gen_muonn_p4",  "TLorentzVector",  &gen_muonn_p4);
+           dimuonditrk_tree->Branch("gen_kaonp_p4",  "TLorentzVector",  &gen_kaonp_p4);
+           dimuonditrk_tree->Branch("gen_kaonn_p4",  "TLorentzVector",  &gen_kaonn_p4);
+        }
+
         //Track flags
 
 
         dimuonditrk_tree->Branch("isBestCandidate",        &isBestCandidate,        "isBestCandidate/O");
+
+        genCands_ = consumes<reco::GenParticleCollection>((edm::InputTag)"prunedGenParticles");
+        packCands_ = consumes<pat::PackedGenParticleCollection>((edm::InputTag)"packedGenParticles");
 
 }
 
@@ -325,6 +350,113 @@ void DiMuonDiTrakRootupler::analyze(const edm::Event& iEvent, const edm::EventSe
   isBestCandidate = true;
 
 // grabbing dimuontt information
+
+edm::Handle<reco::GenParticleCollection> pruned;
+iEvent.getByToken(genCands_, pruned);
+
+// Packed particles are all the status 1. The navigation to pruned is possible (the other direction should be made by hand)
+edm::Handle<pat::PackedGenParticleCollection> packed;
+iEvent.getByToken(packCands_,  packed);
+
+//
+// if ( motherInPrunedCollection != nullptr && (d->pdgId() ==  13 ) && isAncestor(aditrkdimu , motherInPrunedCollection) ) {
+//   gen_muonn_p4.SetPtEtaPhiM(d->pt(),d->eta(),d->phi(),d->mass());
+//   foundit++;
+// }
+// if ( motherInPrunedCollection != nullptr && (d->pdgId() == -13 ) && isAncestor(aditrkdimu , motherInPrunedCollection) ) {
+//   gen_muonp_p4.SetPtEtaPhiM(d->pt(),d->eta(),d->phi(),d->mass());
+//   foundit++;
+// }
+
+gen_dimuon_p4.SetPtEtaPhiM(0.,0.,0.,0.);
+gen_ditrak_p4.SetPtEtaPhiM(0.,0.,0.,0.);
+gen_muonp_p4.SetPtEtaPhiM(0.,0.,0.,0.);
+gen_muonn_p4.SetPtEtaPhiM(0.,0.,0.,0.);
+gen_kaonp_p4.SetPtEtaPhiM(0.,0.,0.,0.);
+gen_kaonn_p4.SetPtEtaPhiM(0.,0.,0.,0.);
+gen_dimuonditrk_p4.SetPtEtaPhiM(0.,0.,0.,0.);
+
+//Looking for mother pdg
+if ( (isMC_ || OnlyGen_) && packed.isValid() && pruned.isValid() ) {
+  for (size_t i=0; i<pruned->size(); i++) {
+    const reco::Candidate *aditrkdimu = &(*pruned)[i];
+    if ( (abs(aditrkdimu->pdgId()) == motherpdgid_) ) {
+      int foundit = 1;
+      bool jpsi = false, phi = false;
+      gen_dimuonditrk_pdgId = aditrkdimu->pdgId();
+      for ( size_t j=0; j<packed->size(); j++ ) { //get the pointer to the first survied ancestor of a given packed GenParticle in the prunedCollection
+
+        const reco::Candidate * motherInPrunedCollection = (*packed)[j].mother(0);
+        const reco::Candidate * d = &(*packed)[j];
+
+        if ( motherInPrunedCollection != nullptr && (d->pdgId() ==  443 ) && (aditrkdimu==motherInPrunedCollection) ) {
+          gen_dimuon_p4.SetPtEtaPhiM(d->pt(),d->eta(),d->phi(),d->mass());
+          jpsi = true;
+          foundit++;
+          int founditjpsi = 1;
+          for ( size_t k=0; k<packed->size(); k++ ) {
+
+            if(k==j) continue;
+
+            const reco::Candidate * secondMotherInPrunedCollection = (*packed)[k].mother(0);
+
+            if ( motherInPrunedCollection != nullptr && (d->pdgId() == 13 ) && isAncestor(motherInPrunedCollection , secondMotherInPrunedCollection) )
+            {
+              gen_muonn_p4.SetPtEtaPhiM(d->pt(),d->eta(),d->phi(),d->mass());
+              foundit++;
+              founditjpsi++;
+            }
+            if ( motherInPrunedCollection != nullptr && (d->pdgId() == -13 ) && isAncestor(motherInPrunedCollection, secondMotherInPrunedCollection) ) {
+              gen_muonp_p4.SetPtEtaPhiM(d->pt(),d->eta(),d->phi(),d->mass());
+              foundit++;
+              founditjpsi++;
+            }
+
+            if(founditjpsi==3) break;
+          }
+
+        }
+        if ( motherInPrunedCollection != nullptr && (d->pdgId() ==  443 ) && (aditrkdimu==motherInPrunedCollection) ) {
+          gen_ditrak_p4.SetPtEtaPhiM(d->pt(),d->eta(),d->phi(),d->mass());
+          phi = true;
+          foundit++;
+          int founditphi = 1;
+          for ( size_t k=0; k<packed->size(); k++ ) {
+
+            if(k==j) continue;
+
+            const reco::Candidate * secondMotherInPrunedCollection = (*packed)[k].mother(0);
+
+            if ( motherInPrunedCollection != nullptr && (d->pdgId() == -321 ) && isAncestor(motherInPrunedCollection , secondMotherInPrunedCollection) )
+            {
+              gen_kaonn_p4.SetPtEtaPhiM(d->pt(),d->eta(),d->phi(),d->mass());
+              foundit++;
+              founditphi++;
+            }
+            if ( motherInPrunedCollection != nullptr && (d->pdgId() == 321 ) && isAncestor(motherInPrunedCollection, secondMotherInPrunedCollection) ) {
+              gen_kaonp_p4.SetPtEtaPhiM(d->pt(),d->eta(),d->phi(),d->mass());
+              foundit++;
+              founditphi++;
+            }
+
+            if(founditphi==3) break;
+          }
+
+        }
+        if ( foundit == 6 && jpsi == true && phi == true ) break;
+      }
+      if ( foundit == 6 && jpsi == true && phi == true ) {
+        gen_dimuonditrk_p4 = gen_dimuon_p4 + gen_ditrak_p4;   // this should take into account FSR
+        //mother_pdgId  = GetAncestor(adimuon)->pdgId();
+        break;
+      } else gen_dimuonditrk_pdgId = 0;
+    }  // if ( p_id
+  } // for (size
+  if ( gen_dimuonditrk_pdgId ) std::cout << "DiMuonRootupler: found the given decay " << run << "," << event << std::endl; // sanity check
+}  // end if isMC
+
+
+if(!OnlyGen_)
   if (!dimuonditrk_cand_handle.isValid()) std::cout<< "No dimuontt information " << run << "," << event <<std::endl;
   if (!dimuonditrk_rf_cand_handle.isValid()) std::cout<< "No dimuonditrk_rf information " << run << "," << event <<std::endl;
 // get rf information. Notice we are just keeping combinations with succesfull vertex fit
@@ -335,8 +467,6 @@ void DiMuonDiTrakRootupler::analyze(const edm::Event& iEvent, const edm::EventSe
     noXCandidates = (Int_t)(dimuonditrk_rf_cand_handle->size());
     //Refitted Handle
     for (unsigned int i=0; i< dimuonditrk_rf_cand_handle->size(); i++){
-
-
 
       dimuonditrk_rf_cand   = dimuonditrk_rf_cand_handle->at(i);
       dimuonditrk_rf_bindx = dimuonditrk_rf_cand.userInt("bIndex");
@@ -352,6 +482,9 @@ void DiMuonDiTrakRootupler::analyze(const edm::Event& iEvent, const edm::EventSe
       dimuonditrk_ctauPV    = dimuonditrk_rf_cand.userFloat("ctauPV");
       dimuonditrk_ctauErrPV = dimuonditrk_rf_cand.userFloat("ctauErrPV");
       dimuonditrk_charge    = dimuonditrk_cand.charge();
+
+      tPMatch = dimuonditrk_rf_cand.userInt("tPMatch");
+      tNMatch = dimuonditrk_rf_cand.userInt("tNMatch");
 
       dimuonditrk_rf_p4.SetPtEtaPhiM(dimuonditrk_rf_cand.pt(),dimuonditrk_rf_cand.eta(),dimuonditrk_rf_cand.phi(),dimuonditrk_rf_cand.mass());
       dimuon_rf_p4.SetPtEtaPhiM(dimuonditrk_rf_cand.daughter("dimuon")->pt(),dimuonditrk_rf_cand.daughter("dimuon")->eta(),
@@ -436,7 +569,7 @@ void DiMuonDiTrakRootupler::analyze(const edm::Event& iEvent, const edm::EventSe
       dimuon_triggerMatch = DiMuonDiTrakRootupler::isTriggerMatched(dimuon_cand);
 
       dimuonditrk_tree->Fill();
-
+      std::cout << i << std::endl;
       if (OnlyBest_) break;
       else if(i==0)
       isBestCandidate = false;
