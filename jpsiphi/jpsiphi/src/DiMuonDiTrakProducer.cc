@@ -77,7 +77,7 @@ void DiMuonDiTrakProducer::produce(edm::Event& iEvent, const edm::EventSetup& es
     pat::TriggerObjectStandAlone unPackedTrigger( trig->at( iTrigObj ) );
 
     unPackedTrigger.unpackPathNames( names );
-    unPackedTrigger.unpackFilterLabels(iEvent,*triggerResults_handle);
+    //unPackedTrigger.unpackFilterLabels(iEvent,*triggerResults_handle);
 
     bool filtered = false;
     UInt_t thisFilter = 0;
