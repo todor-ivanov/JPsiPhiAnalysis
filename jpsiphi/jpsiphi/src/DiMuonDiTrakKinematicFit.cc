@@ -251,6 +251,9 @@ void DiMuonDiTrakKinematicFit::produce(edm::Event& iEvent, const edm::EventSetup
             patPsiT.addUserFloat("ctauPV",ctauPV);
             patPsiT.addUserFloat("ctauErrPV",ctauErrPV);
 
+            patPsiT.addUserInt("tPMatch",dimuontt->userInt("tPMatch"));
+            patPsiT.addUserInt("tNMatch",dimuontt->userInt("tNMatch"));
+
             patPsiT.addUserInt("bIndex",indexPsiT);
 
 // get first muon
