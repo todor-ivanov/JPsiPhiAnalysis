@@ -27,6 +27,9 @@ process.TFileService = cms.Service("TFileService",
         fileName = cms.string('rootuple-2016-dimuonditrak.root'),
 )
 
+kaonmass = 0.493677
+pionmass = 0.13957061
+
 process.load("jpsiphi.jpsiphi.slimmedMuonsTriggerMatcher2016_cfi")
 # process.load("jpsiphi.jpsiphi.slimmedTracksTriggerMatcher2017_cfi")
 
