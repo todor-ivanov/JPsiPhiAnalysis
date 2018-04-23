@@ -65,6 +65,12 @@ filters = cms.vstring(#HLT_DoubleMu4_JpsiTrk_Displaced_v4
                       'hltDisplacedmumuFilterDimuon10JpsiBarrel'
                                 )
 
+process.unpackPatTriggers = cms.EDProducer("PATTriggerObjectStandAloneUnpacker",
+  patTriggerObjectsStandAlone = cms.InputTag( 'selectedPatTrigger' ),
+  triggerResults              = cms.InputTag( 'TriggerResults::HLT' ),
+  unpackFilterLabels          = cms.bool( True )
+)
+
 process.triggerSelection = cms.EDFilter("TriggerResultsFilter",
                                         triggerConditions = cms.vstring(hltpathsV),
                                         hltResults = cms.InputTag( "TriggerResults", "", "HLT" ),
