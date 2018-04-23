@@ -1,30 +1,65 @@
 #include "../interface/DiMuonDiTrakProducer.h"
 
-DiMuonDiTrakProducer::DiMuonDiTrakProducer(const edm::ParameterSet& ps):
-  DiMuonCollection_(consumes<pat::CompositeCandidateCollection>(ps.getParameter<edm::InputTag>("DiMuon"))),
-  TrakCollection_(consumes<std::vector<pat::PackedCandidate>>(ps.getParameter<edm::InputTag>("PFCandidates"))),
-  DiMuonMassCuts_(ps.getParameter<std::vector<double>>("DiMuonMassCuts")),
-  TrakTrakMassCuts_(ps.getParameter<std::vector<double>>("TrakTrakMassCuts")),
-  DiMuonDiTrakMassCuts_(ps.getParameter<std::vector<double>>("DiMuonDiTrakMassCuts")),
-  MassTraks_(ps.getParameter<std::vector<double>>("MassTraks")),
-  OnlyBest_(ps.getParameter<bool>("OnlyBest"))
+float DiMuonDiTrakProducer::DeltaR(const pat::PackedCandidate t1, const pat::TriggerObjectStandAlone t2)
 {
-  produces<pat::CompositeCandidateCollection>("DiMuonDiTrakCandidates");
+   float p1 = t1.phi();
+   float p2 = t2.phi();
+   float e1 = t1.eta();
+   float e2 = t2.eta();
+   auto dp=std::abs(p1-p2); if (dp>float(M_PI)) dp-=float(2*M_PI);
+
+   return sqrt((e1-e2)*(e1-e2) + dp*dp);
+}
+
+bool DiMuonDiTrakProducer::MatchByDRDPt(const pat::PackedCandidate t1, const pat::TriggerObjectStandAlone t2)
+{
+  return (fabs(t1.pt()-t2.pt())/t2.pt()<maxDPtRel &&
+	DeltaR(t1,t2) < maxDeltaR);
+}
+
+
+DiMuonDiTrakProducer::DiMuonDiTrakProducer(const edm::ParameterSet& iConfig):
+  DiMuonCollection_(consumes<pat::CompositeCandidateCollection>(iConfig.getParameter<edm::InputTag>("DiMuon"))),
+  TrakCollection_(consumes<std::vector<pat::PackedCandidate>>(iConfig.getParameter<edm::InputTag>("PFCandidates"))),
+  TriggerCollection_(consumes<std::vector<pat::TriggerObjectStandAlone>>(iConfig.getParameter<edm::InputTag>("TriggerInput"))),
+  triggerResults_Label(consumes<edm::TriggerResults>(iConfig.getParameter<edm::InputTag>("TriggerResults"))),
+  DiMuonMassCuts_(iConfig.getParameter<std::vector<double>>("DiMuonMassCuts")),
+  TrakTrakMassCuts_(iConfig.getParameter<std::vector<double>>("TrakTrakMassCuts")),
+  DiMuonDiTrakMassCuts_(iConfig.getParameter<std::vector<double>>("DiMuonDiTrakMassCuts")),
+  MassTraks_(iConfig.getParameter<std::vector<double>>("MassTraks")),
+  OnlyBest_(iConfig.getParameter<bool>("OnlyBest")),
+  product_name_(iConfig.getParameter<std::string>("Product")),
+  HLTFilters_(iConfig.getParameter<std::vector<std::string>>("Filters")),
+  isMC_(iConfig.getParameter<bool>("IsMC"))
+{
+  produces<pat::CompositeCandidateCollection>(product_name_);
   candidates = 0;
   nevents = 0;
   ndimuon = 0;
   nreco = 0;
+
+  maxDeltaR = 0.01;
+  maxDPtRel = 2.0;
+
 }
 
-void DiMuonDiTrakProducer::produce(edm::Event& event, const edm::EventSetup& esetup){
+void DiMuonDiTrakProducer::produce(edm::Event& iEvent, const edm::EventSetup& esetup){
 
   std::unique_ptr<pat::CompositeCandidateCollection> DiMuonTTCandColl(new pat::CompositeCandidateCollection);
 
   edm::Handle<pat::CompositeCandidateCollection> dimuon;
-  event.getByToken(DiMuonCollection_,dimuon);
+  iEvent.getByToken(DiMuonCollection_,dimuon);
 
   edm::Handle<std::vector<pat::PackedCandidate> > trak;
-  event.getByToken(TrakCollection_,trak);
+  iEvent.getByToken(TrakCollection_,trak);
+
+  edm::Handle<std::vector<pat::TriggerObjectStandAlone>> trig;
+  iEvent.getByToken(TriggerCollection_,trig);
+
+  edm::Handle< edm::TriggerResults > triggerResults_handle;
+  iEvent.getByToken( triggerResults_Label , triggerResults_handle);
+
+  const edm::TriggerNames & names = iEvent.triggerNames( *triggerResults_handle );
 
   uint ncombo = 0;
   float DiMuonMassMax_ = DiMuonMassCuts_[1];
@@ -34,6 +69,68 @@ void DiMuonDiTrakProducer::produce(edm::Event& event, const edm::EventSetup& ese
   float DiMuonDiTrakMassMax_ = DiMuonDiTrakMassCuts_[1];
   float DiMuonDiTrakMassMin_ = DiMuonDiTrakMassCuts_[0];
 
+  pat::TriggerObjectStandAloneCollection filteredColl,matchedColl;
+  std::vector < UInt_t > filterResults,filters;
+
+  for ( size_t iTrigObj = 0; iTrigObj < trig->size(); ++iTrigObj ) {
+
+    pat::TriggerObjectStandAlone unPackedTrigger( trig->at( iTrigObj ) );
+
+    unPackedTrigger.unpackPathNames( names );
+    unPackedTrigger.unpackFilterLabels(iEvent,*triggerResults_handle);
+
+    bool filtered = false;
+    UInt_t thisFilter = 0;
+
+    for (size_t i = 0; i < HLTFilters_.size(); i++)
+      if(unPackedTrigger.hasFilterLabel(HLTFilters_[i]))
+        {
+          thisFilter += (1<<i);
+          filtered = true;
+        }
+
+    if(filtered)
+    {
+      filteredColl.push_back(unPackedTrigger);
+      filterResults.push_back(thisFilter);
+    }
+  }
+
+  for (std::vector<pat::PackedCandidate>::const_iterator t = trak->begin(), trakend=trak->end(); t!= trakend; ++t)
+  {
+    bool matched = false;
+    for (std::vector<pat::TriggerObjectStandAlone>::const_iterator trigger = filteredColl.begin(), triggerEnd=filteredColl.end(); trigger!= triggerEnd; ++trigger)
+  for ( size_t iTrigObj = 0; iTrigObj < filteredColl.size(); ++iTrigObj )
+    {
+      auto thisTrig = filteredColl.at(iTrigObj);
+      if(MatchByDRDPt(*t,filteredColl[iTrigObj]))
+      {
+        if(matched)
+        {
+          if(DeltaR(*t,matchedColl.back()) > DeltaR(*t,thisTrig))
+          {
+            filters.pop_back();
+            filters.push_back(filterResults[iTrigObj]);
+            matchedColl.pop_back();
+            matchedColl.push_back(thisTrig);
+
+          }
+        }
+
+        if(!matched)
+          {
+            filters.push_back(filterResults[iTrigObj]);
+            matchedColl.push_back(thisTrig);
+          }
+
+        matched = true;
+      }
+    }
+
+    if (!matched)
+      filters.push_back(0);
+  }
+
 // Note: Dimuon cand are sorted by decreasing vertex probability then first is associated with "best" dimuon
   for (pat::CompositeCandidateCollection::const_iterator dimuonCand = dimuon->begin(); dimuonCand != dimuon->end(); ++dimuonCand){
      if ( dimuonCand->mass() < DiMuonMassMax_  && dimuonCand->mass() > DiMuonMassMin_ ) {
@@ -41,31 +138,39 @@ void DiMuonDiTrakProducer::produce(edm::Event& event, const edm::EventSetup& ese
        const pat::Muon *pmu2 = dynamic_cast<const pat::Muon*>(dimuonCand->daughter("muon2"));
 
 // loop on track candidates, make DiMuonT candidate, positive charge
-       for (std::vector<pat::PackedCandidate>::const_iterator posTrack = trak->begin(), trakend=trak->end(); posTrack!= trakend; ++posTrack){
+       // for (std::vector<pat::PackedCandidate>::const_iterator posTrack = trak->begin(), trakend=trak->end(); posTrack!= trakend; ++posTrack){
+       for (size_t i = 0; i < trak->size(); i++) {
+         auto posTrack = trak->at(i);
 
-         if(posTrack->charge()==0) continue;
-         if(posTrack->pt()<0.5) continue;
-	       if(fabs(posTrack->pdgId())!=211) continue;
-	       if(!(posTrack->trackHighPurity())) continue;
+         if(posTrack.charge()==0) continue;
+         if(posTrack.pt()<0.5) continue;
+	       if(!isMC_ and fabs(posTrack.pdgId())!=211) continue;
+	       if(!(posTrack.trackHighPurity())) continue;
 
-         if ( IsTheSame(*posTrack,*pmu1) || IsTheSame(*posTrack,*pmu2) || posTrack->charge() < 0 ) continue;
+         if ( IsTheSame(posTrack,*pmu1) || IsTheSame(posTrack,*pmu2) || posTrack.charge() < 0 ) continue;
 
 // loop over second track candidate, negative charge
-         for (std::vector<pat::PackedCandidate>::const_iterator negTrack = trak->begin(); negTrack!= trakend; ++negTrack){
+         // for (std::vector<pat::PackedCandidate>::const_iterator negTrack = trak->begin(); negTrack!= trakend; ++negTrack){
+         for (size_t j = 0; j < trak->size(); j++) {
+           auto negTrack = trak->at(j);
 
-           if(negTrack->charge()==0) continue;
-           if(negTrack->pt()<0.5) continue;
-  	       if(fabs(negTrack->pdgId())!=211) continue;
-  	       if(!(negTrack->trackHighPurity())) continue;
+           if(negTrack.charge()==0) continue;
+           if(negTrack.pt()<0.5) continue;
 
-           if (negTrack == posTrack) continue;
-           if ( IsTheSame(*negTrack,*pmu1) || IsTheSame(*negTrack,*pmu2) || negTrack->charge() > 0 ) continue;
+  	       if(!isMC_ and fabs(negTrack.pdgId())!=211) continue;
+  	       if(!(negTrack.trackHighPurity())) continue;
 
-           pat::CompositeCandidate TTCand = makeTTCandidate(*posTrack, *negTrack);
+           if (i == j) continue;
+           if ( IsTheSame(negTrack,*pmu1) || IsTheSame(negTrack,*pmu2) || negTrack.charge() > 0 ) continue;
+
+           pat::CompositeCandidate TTCand = makeTTCandidate(posTrack, negTrack);
 
            if ( TTCand.mass() < TrakTrakMassMax_ && TTCand.mass() > TrakTrakMassMin_ ) {
 
            pat::CompositeCandidate DiMuonTTCand = makeDiMuonTTCandidate(*dimuonCand, *&TTCand);
+
+           DiMuonTTCand.addUserInt("tPMatch",filters[i]);
+           DiMuonTTCand.addUserInt("tNMatch",filters[j]);
 
            if ( DiMuonTTCand.mass() < DiMuonDiTrakMassMax_ && DiMuonTTCand.mass() > DiMuonDiTrakMassMin_) {
 
@@ -84,7 +189,7 @@ void DiMuonDiTrakProducer::produce(edm::Event& event, const edm::EventSetup& ese
   if ( ncombo != DiMuonTTCandColl->size() ) std::cout <<"ncombo ("<<ncombo<< ") != DiMuonTT ("<<DiMuonTTCandColl->size()<<")"<< std::endl;
   if ( !dimuon->empty() )  ndimuon++;
   if ( ncombo > 0 ) nreco++;
-  event.put(std::move(DiMuonTTCandColl),"DiMuonDiTrakCandidates");
+  iEvent.put(std::move(DiMuonTTCandColl),product_name_);
   nevents++;
 }
 
@@ -107,7 +212,7 @@ bool DiMuonDiTrakProducer::IsTheSame(const pat::PackedCandidate& tk, const pat::
   return false;
 }
 
-const pat::CompositeCandidate DiMuonDiTrakProducer::makeDiMuonTTCandidate(
+pat::CompositeCandidate DiMuonDiTrakProducer::makeDiMuonTTCandidate(
                                           const pat::CompositeCandidate& dimuon,
 				          const pat::CompositeCandidate& tt
                                          ){
@@ -125,7 +230,7 @@ const pat::CompositeCandidate DiMuonDiTrakProducer::makeDiMuonTTCandidate(
 
 }
 
-const pat::CompositeCandidate DiMuonDiTrakProducer::makeTTCandidate(
+pat::CompositeCandidate DiMuonDiTrakProducer::makeTTCandidate(
                                           const pat::PackedCandidate& trakP,
                                           const pat::PackedCandidate& trakN
                                          ){
