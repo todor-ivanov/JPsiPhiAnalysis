@@ -90,7 +90,7 @@ process.JPsi2MuMuPAT = cms.EDProducer('DiMuonProducerPAT',
         dimuonSelection             = cms.string("2.95 < mass && mass < 3.25 && charge==0"),
         addCommonVertex             = cms.bool(True),
         addMuonlessPrimaryVertex    = cms.bool(False),
-        addMCTruth                  = cms.bool(False),
+        addMCTruth                  = cms.bool(True),
         resolvePileUpAmbiguity      = cms.bool(True),
         HLTFilters                  = filters
 )
@@ -106,19 +106,24 @@ process.JPsi2MuMuFilter = cms.EDProducer('DiMuonFilter',
 process.PsiPhiProducer = cms.EDProducer('DiMuonDiTrakProducer',
     DiMuon = cms.InputTag('JPsi2MuMuPAT'),
     PFCandidates = cms.InputTag('packedPFCandidates'),
+    TriggerInput            = cms.InputTag("unpackPatTriggers"),
+    TriggerResults = cms.InputTag("TriggerResults", "", "HLT"),
     DiMuonMassCuts = cms.vdouble(2.95,3.25),      # J/psi mass window 3.096916 +/- 0.150
     TrakTrakMassCuts = cms.vdouble(1.0,1.04),  # phi mass window 1.019461 +/- .015
     DiMuonDiTrakMassCuts = cms.vdouble(4.0,5.8),            # b-hadron mass window
-    MassTraks = cms.vdouble(0.493677,0.493677),         # traks masses
-    OnlyBest  = cms.bool(False)
+    MassTraks = cms.vdouble(kaonmass,kaonmass),         # traks masses
+    OnlyBest  = cms.bool(False),
+    Product = cms.string("DiMuonDiTrakCandidates"),
+    Filters = filters,
+    IsMC = cms.bool(True),
 )
 
 process.PsiPhiFitter = cms.EDProducer('DiMuonDiTrakKinematicFit',
-    DiMuonDiTrak        = cms.InputTag('PsiPhiProducer','DiMuonDiTrakCandidates'),
-    DiMuonMass          = cms.double(3.096916),              # J/psi mass in GeV
+    DiMuonDiTrak              = cms.InputTag('PsiPhiProducer','DiMuonDiTrakCandidates'),
+    DiMuonMass                = cms.double(3.096916),              # J/psi mass in GeV
     DiMuonTrakTrakMassCuts    = cms.vdouble(4.0,5.8),            # b-hadron mass window
-    MassTraks           = cms.vdouble(0.493677,0.493677),         # traks masses
-    Product             = cms.string('DiMuonDiTrakCandidatesRef')
+    MassTraks                 = cms.vdouble(kaonmass,kaonmass),         # traks masses
+    Product                   = cms.string('DiMuonDiTrakCandidatesRef')
 )
 
 process.rootuple = cms.EDAnalyzer('DiMuonDiTrakRootupler',
@@ -145,7 +150,7 @@ process.rootupleMuMu = cms.EDAnalyzer('DiMuonRootupler',
                           TriggerResults = cms.InputTag("TriggerResults", "", "HLT"),
                           dimuon_pdgid = cms.uint32(443),
                           dimuon_mass_cuts = cms.vdouble(2.5,3.5),
-                          isMC = cms.bool(False),
+                          isMC = cms.bool(True),
                           OnlyBest = cms.bool(False),
                           OnlyGen = cms.bool(False),
                           HLTs = hltpaths
@@ -153,7 +158,7 @@ process.rootupleMuMu = cms.EDAnalyzer('DiMuonRootupler',
 
 process.p = cms.Path(process.triggerSelection *
                      process.slimmedMuonsWithTriggerSequence *
-                     # process.slimmedPFCandsWithTriggerSequence *
+                     process.unpackPatTriggers *
                      process.softMuons *
                      process.JPsi2MuMuPAT *
                      process.JPsi2MuMuFilter*
