@@ -624,15 +624,15 @@ DiMuonProducerPAT::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
         bool aBhadron = false;
         reco::GenParticleRef Jpsimom = genJpsi->motherRef();       // find mothers
 
-
+        std::cout << " findJpsiMCInfo 2b " << std::endl;
 
         if (Jpsimom.isNull()) {
           std::pair<int, float> result = std::make_pair(momJpsiID, trueLife);
           std::cout << " findJpsiMCInfo 3a " << std::endl;
           return result;
         } else {
-          reco::GenParticleRef Jpsigrandmom = Jpsimom->motherRef();
           std::cout << " findJpsiMCInfo 3b " << std::endl;
+          reco::GenParticleRef Jpsigrandmom = Jpsimom->motherRef();
           if (isAbHadron(Jpsimom->pdgId())) {
             std::cout << " findJpsiMCInfo 3c " << std::endl;
             if (Jpsigrandmom.isNonnull() && isAMixedbHadron(Jpsimom->pdgId(),Jpsigrandmom->pdgId())) {
