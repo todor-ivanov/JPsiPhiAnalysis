@@ -45,7 +45,7 @@ DiMuonDiTrakProducer::DiMuonDiTrakProducer(const edm::ParameterSet& iConfig):
 
 void DiMuonDiTrakProducer::produce(edm::Event& iEvent, const edm::EventSetup& esetup){
 
-  std::cout << "DiMuonDiTrakProducer"<<std::endl;
+  // std::cout << "DiMuonDiTrakProducer"<<std::endl;
   std::unique_ptr<pat::CompositeCandidateCollection> DiMuonTTCandColl(new pat::CompositeCandidateCollection);
 
   edm::Handle<pat::CompositeCandidateCollection> dimuon;

@@ -331,7 +331,7 @@ bool DiMuonDiTrakRootupler::isAncestor(const reco::Candidate* ancestor, const re
 void DiMuonDiTrakRootupler::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup) {
 //  using namespace edm;
   using namespace std;
-  std::cout << "DiMuonRootupler::DiMuonRootupler"<<std::endl;
+  // std::cout << "DiMuonDiTrackRootupler"<<std::endl;
   edm::Handle<std::vector<pat::CompositeCandidate>> dimuonditrk_cand_handle;
   iEvent.getByToken(dimuonditrk_cand_Label, dimuonditrk_cand_handle);
 

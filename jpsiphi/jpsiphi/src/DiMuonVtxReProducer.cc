@@ -10,6 +10,7 @@
 
 DiMuonVtxReProducer::DiMuonVtxReProducer(const edm::Handle<reco::VertexCollection> &handle, const edm::Event &iEvent)
 {
+  // std::cout << "DiMuonVtxReProducer"<<std::endl;
     const edm::Provenance *prov = handle.provenance();
     if (prov == nullptr) throw cms::Exception("CorruptData") << "Vertex handle doesn't have provenance.";
     edm::ParameterSet psetFromProvenance = edm::parameterSet(*prov);
