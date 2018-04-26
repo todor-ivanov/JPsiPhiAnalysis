@@ -624,36 +624,48 @@ DiMuonProducerPAT::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
         bool aBhadron = false;
         reco::GenParticleRef Jpsimom = genJpsi->motherRef();       // find mothers
 
-        std::cout << " findJpsiMCInfo 3 " << std::endl;
+
 
         if (Jpsimom.isNull()) {
           std::pair<int, float> result = std::make_pair(momJpsiID, trueLife);
+          std::cout << " findJpsiMCInfo 3a " << std::endl;
           return result;
         } else {
           reco::GenParticleRef Jpsigrandmom = Jpsimom->motherRef();
+          std::cout << " findJpsiMCInfo 3b " << std::endl;
           if (isAbHadron(Jpsimom->pdgId())) {
+            std::cout << " findJpsiMCInfo 3c " << std::endl;
             if (Jpsigrandmom.isNonnull() && isAMixedbHadron(Jpsimom->pdgId(),Jpsigrandmom->pdgId())) {
+              std::cout << " findJpsiMCInfo 3d " << std::endl;
               momJpsiID = Jpsigrandmom->pdgId();
               trueVtxMom.SetXYZ(Jpsigrandmom->vertex().x(),Jpsigrandmom->vertex().y(),Jpsigrandmom->vertex().z());
             } else {
+              std::cout << " findJpsiMCInfo 3e " << std::endl;
               momJpsiID = Jpsimom->pdgId();
               trueVtxMom.SetXYZ(Jpsimom->vertex().x(),Jpsimom->vertex().y(),Jpsimom->vertex().z());
             }
+            std::cout << " findJpsiMCInfo 3f " << std::endl;
             aBhadron = true;
           } else {
             if (Jpsigrandmom.isNonnull() && isAbHadron(Jpsigrandmom->pdgId())) {
+              std::cout << " findJpsiMCInfo 3g " << std::endl;
               reco::GenParticleRef JpsiGrandgrandmom = Jpsigrandmom->motherRef();
+              std::cout << " findJpsiMCInfo 3h " << std::endl;
               if (JpsiGrandgrandmom.isNonnull() && isAMixedbHadron(Jpsigrandmom->pdgId(),JpsiGrandgrandmom->pdgId())) {
+                std::cout << " findJpsiMCInfo 3i " << std::endl;
                 momJpsiID = JpsiGrandgrandmom->pdgId();
                 trueVtxMom.SetXYZ(JpsiGrandgrandmom->vertex().x(),JpsiGrandgrandmom->vertex().y(),JpsiGrandgrandmom->vertex().z());
               } else {
+                std::cout << " findJpsiMCInfo 3l " << std::endl;
                 momJpsiID = Jpsigrandmom->pdgId();
                 trueVtxMom.SetXYZ(Jpsigrandmom->vertex().x(),Jpsigrandmom->vertex().y(),Jpsigrandmom->vertex().z());
               }
+              std::cout << " findJpsiMCInfo 3m " << std::endl;
               aBhadron = true;
             }
           }
           if (!aBhadron) {
+            std::cout << " findJpsiMCInfo 3n " << std::endl;
             momJpsiID = Jpsimom->pdgId();
             trueVtxMom.SetXYZ(Jpsimom->vertex().x(),Jpsimom->vertex().y(),Jpsimom->vertex().z());
           }
