@@ -307,9 +307,11 @@ DiMuonDiTrakRootupler::~DiMuonDiTrakRootupler() {}
 //
 
 bool DiMuonDiTrakRootupler::isAncestor(const reco::Candidate* ancestor, const reco::Candidate * particle) {
+   if (ancestor)
    if (ancestor == particle ) return true;
    for (size_t i=0; i< particle->numberOfMothers(); i++) {
       if (isAncestor(ancestor, particle->mother(i))) return true;
+      std::cout << "Ancestor!"<< std::endl;
    }
    return false;
 }
@@ -515,7 +517,7 @@ if ( (isMC_ || OnlyGen_) && packed.isValid() && pruned.isValid() ) {
 
       if(muP && muN && kP && kN)
       {
-
+        std::cout << "Found!"<< std::endl;
         gen_dimuonditrk_p4.SetPtEtaPhiM(aditrkdimu->pt(),aditrkdimu->eta(),aditrkdimu->phi(),aditrkdimu->mass());
         gen_dimuon_p4.SetPtEtaPhiM(daughters[theJPsi]->pt(),daughters[theJPsi]->eta(),daughters[theJPsi]->phi(),daughters[theJPsi]->mass());
         gen_ditrak_p4.SetPtEtaPhiM(daughters[thePhi]->pt(),daughters[thePhi]->eta(),daughters[thePhi]->phi(),daughters[thePhi]->mass());
