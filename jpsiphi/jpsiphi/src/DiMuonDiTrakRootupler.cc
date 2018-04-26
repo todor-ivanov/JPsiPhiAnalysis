@@ -278,7 +278,7 @@ DiMuonDiTrakRootupler::DiMuonDiTrakRootupler(const edm::ParameterSet& iConfig):
 
         int pdgid_ = 0;
 
-        if (isMC_ ) {
+        if (isMC_ || OnlyGen_) {
            std::cout << "DiMuonRootupler::DiMuonRootupler: Dimuon id " << pdgid_ << std::endl;
            dimuonditrk_tree->Branch("gen_dimuonditrk_pdgId",  &gen_dimuonditrk_pdgId,     "gen_dimuonditrk_pdgId/I");
            dimuonditrk_tree->Branch("gen_dimuonditrk_p4", "TLorentzVector",  &gen_dimuonditrk_p4);
@@ -446,6 +446,7 @@ if ( (isMC_ || OnlyGen_) && packed.isValid() && pruned.isValid() ) {
       {
         const reco::Candidate * daughter = aditrkdimu->daughter(j);
         if(daughter->mother(daughter->numberOfMothers()-1) != aditrkdimu) continue;
+        std::cout << "Daughter no . " << j << " : " << daughter->pdgId() << std::endl;
         if(daughter->pdgId() == 443)
         {
           goToJPsi=true;
@@ -472,7 +473,7 @@ if ( (isMC_ || OnlyGen_) && packed.isValid() && pruned.isValid() ) {
           const reco::Candidate * gdaughter = daughters[j]->daughter(k);
           if(gdaughter->mother(gdaughter->numberOfMothers()-1) != daughters[j]) continue;
           gdaughters.push_back(gdaughter);
-
+          std::cout << "GDaughter no . " << k << " : " << gdaughter->pdgId() << std::endl;
           if(goToPhi && goToJPsi)
           {
             if(gdaughter->pdgId()==-13)
