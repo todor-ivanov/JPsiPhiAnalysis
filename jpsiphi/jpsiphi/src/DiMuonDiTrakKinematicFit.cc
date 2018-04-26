@@ -132,6 +132,7 @@ DiMuonDiTrakKinematicFit::~DiMuonDiTrakKinematicFit() {
 // ------------ method called to produce the data  ------------
 void DiMuonDiTrakKinematicFit::produce(edm::Event& iEvent, const edm::EventSetup& iSetup) {
 
+  std::cout << "DiMuonDiTrakKinematicFit"<<std::endl;
   // Grab paramenters
   edm::Handle<pat::CompositeCandidateCollection> PsiTCandHandle;
   iEvent.getByToken(DiMuonTTCand_, PsiTCandHandle);

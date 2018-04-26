@@ -101,6 +101,7 @@ UInt_t DiMuonProducerPAT::isTriggerMatched(pat::CompositeCandidate *diMuon_cand)
 void
 DiMuonProducerPAT::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
+  std::cout << "DiMuonProducerPAT"<<std::endl;
   using namespace edm;
   using namespace std;
   using namespace reco;

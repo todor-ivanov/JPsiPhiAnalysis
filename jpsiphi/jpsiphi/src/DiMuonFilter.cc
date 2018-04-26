@@ -66,6 +66,8 @@ UInt_t DiMuonFilter::isTriggerMatched(const pat::CompositeCandidate *diMuon_cand
 
 // ------------ method called to produce the data  ------------
 void DiMuonFilter::produce(edm::Event& iEvent, const edm::EventSetup& iSetup) {
+  std::cout << "DiMuonFilter"<<std::endl;
+
   std::unique_ptr<pat::CompositeCandidateCollection> mumuOutput(new pat::CompositeCandidateCollection);
   edm::Handle<pat::CompositeCandidateCollection> onias_;
   iEvent.getByToken(theOnias_, onias_);
