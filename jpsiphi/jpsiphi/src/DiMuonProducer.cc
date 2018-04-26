@@ -609,6 +609,7 @@ DiMuonProducerPAT::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
       int momJpsiID = 0;
       float trueLife = -99.;
 
+      std::cout << " findJpsiMCInfo 1 " << std::endl;
       if (genJpsi->numberOfMothers()>0) {
 
         TVector3 trueVtx(0.0,0.0,0.0);
@@ -618,8 +619,13 @@ DiMuonProducerPAT::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
         trueVtx.SetXYZ(genJpsi->vertex().x(),genJpsi->vertex().y(),genJpsi->vertex().z());
         trueP.SetXYZ(genJpsi->momentum().x(),genJpsi->momentum().y(),genJpsi->momentum().z());
 
+        std::cout << " findJpsiMCInfo 2 " << std::endl;
+
         bool aBhadron = false;
         reco::GenParticleRef Jpsimom = genJpsi->motherRef();       // find mothers
+
+        std::cout << " findJpsiMCInfo 3 " << std::endl;
+
         if (Jpsimom.isNull()) {
           std::pair<int, float> result = std::make_pair(momJpsiID, trueLife);
           return result;
@@ -652,7 +658,7 @@ DiMuonProducerPAT::produce(edm::Event& iEvent, const edm::EventSetup& iSetup)
             trueVtxMom.SetXYZ(Jpsimom->vertex().x(),Jpsimom->vertex().y(),Jpsimom->vertex().z());
           }
         }
-
+        std::cout << " findJpsiMCInfo 4 " << std::endl;
         TVector3 vdiff = trueVtx - trueVtxMom;
         //trueLife = vdiff.Perp()*3.09688/trueP.Perp();
         trueLife = vdiff.Perp()*genJpsi->mass()/trueP.Perp();
